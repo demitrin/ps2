@@ -1,0 +1,75 @@
+#navigation {
+    width: 140px
+}
+#navigation table {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    width: 100%
+}
+#navigation input {
+    width: 100%
+}
+input {
+    pointer-events: all;
+}
+#checker-board {
+    background-color: white;
+    border: 0px solid gray;
+    margin: 0px;
+    padding: 0px;
+    position: absolute;
+    pointer-events: all;
+}
+.checkerTableDatum {
+    float: left;
+    background-color: gray;
+    pointer-events: all;
+}
+html, body, #content, #checker-board, #mainTable {
+    z-index: -1;
+    pointer-events: none;
+}
+#content {
+    position: relative;
+}
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+.red {
+    background-color: red;
+    color: white;
+    text-align: center;
+}
+.black {
+    background-color: black;
+    color: white;
+    text-align: center;
+}
+#checker-board tr {
+    position: inherit;
+    padding: 0px;
+    margin: 0px;
+    border: 0px;
+}
+#checker-board td {
+    position: inherit;
+    padding: 0px;
+    margin: 0px;
+    border: 0px;
+}
+#arrows {
+    z-index: 5;
+    pointer-events: none;
+}
+.checker {
+    position: absolute;
+    margin: 0 auto;
+    border: 0;
+    padding: 0;
+    pointer-events: all;
+}
+td {
+    z-index: inherit;
+}

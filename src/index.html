@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+
+<!--
+  COLLABORATORS: None
+
+  IMPORTANT NOTE: I use a CDN for my jquery-ui.
+                  If jquery-ui fails to load, please connect to the internet
+-->
+<html>
+
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+<title>Checkerboard</title>
+
+<!-- Load style sheets -->
+<link rel="stylesheet" type="text/css" href="mainLayout.css"/>
+
+<!-- Load any supplemental Javascript libraries here -->
+<script type="text/javascript" src="external_js/jquery-1.9.0.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
+<script type="text/javascript" src="checker.js"></script>
+<script type="text/javascript" src="boardEvent.js"></script>
+<script type="text/javascript" src="board.js"></script>
+<script type="text/javascript" src="rules.js"></script>
+
+<script type="text/javascript">
+//This script extracts parameters from the URL
+//from jquery-howto.blogspot.com
+
+$.extend({
+    getUrlVars: function () {
+        var vars = [], hash;
+        var hashes = window.location.href.slice(
+                window.location.href.indexOf('?') + 1).split('&');
+        for (var i = 0; i < hashes.length; i++) {
+            hash = hashes[i].split('=');
+            vars.push(hash[0]);
+            vars[hash[0]] = hash[1];
+        }
+        return vars;
+    },
+    getUrlVar: function (name) {
+        return $.getUrlVars()[name];
+    }
+});
+
+
+var DEFAULT_BOARD_SIZE = 8;
+
+//data model
+var board;
+var rules;
+var whoseTurn = "black";
+
+var directionOf = function (color) {
+    if (color == "black") {
+        return -1;
+    }
+    return 1;
+}
+
+
+// Fill in this function to toggle the display for whose turn
+// The color parameter should be either "black" or "red"
+var toggleTurn = function (turnDisplay) {
+    // Your code here
+    whoseTurn = whoseTurn == 'black' ? 'red' : 'black';
+    var whoseTurnCapitalized = whoseTurn == 'black' ? 'Black' : 'Red';
+    turnDisplay.text(whoseTurnCapitalized + ' Turn')
+            .removeClass()
+            .addClass(whoseTurn);
+
+    turnDirection = turnDirection === BLACK_DIRECTION ? RED_DIRECTION :
+            BLACK_DIRECTION;
+}
+
+var Checker = function (color, isKing) {
+    ////////////////////////////////////////////////
+    // Representation
+    //
+    if (color != "red" && color != "black") {
+        alert('color must be one of "red" or "black"');
+    }
+
+    this.color = color;
+    this.isKing = isKing;
+    this.row;
+    this.col;
+
+    ////////////////////////////////////////////////
+    // Public methods
+    //
+
+    this.setRow = function (row) {
+        this.row = row;
+        return this;
+    };
+
+    this.setCol = function (col) {
+        this.col = col;
+        return this;
+    };
+    this.getColor = function () {
+        return this.color;
+    }
+    this.toString = function () {
+        var name = this.color;
+        if (this.isKing) name = name.toUpperCase();
+        return name;
+    }
+}
+
+// This allows the Javascript code inside this block to only run when the page
+// has finished loading in the browser.
+$(document).ready(function () {
+
+    var drawBoard = function (size) {
+        var SQUARE_LENGTH = 400 / size;
+
+        var isEvenTR;
+        var newTR;
+        var newTD;
+        var checkerTable = $('#checker-board');
+        for (var i = 0; i < size; i++) {
+            isEvenTR = i % 2 == 0;
+            newTR = $(document.createElement('tr'));
+            for (var j = 0; j < size; j++) {
+                newTD = $(document.createElement('td'));
+                newTD.height(SQUARE_LENGTH + 'px')
+                        .width(SQUARE_LENGTH + 'px');
+                if (isEvenTR) {
+                    if (j % 2 == 1) {
+                        newTD.addClass('checkerTableDatum');
+                    }
+                } else {
+                    if (j % 2 == 0) {
+                        newTD.addClass('checkerTableDatum');
+                    }
+                }
+                newTD.attr('id', 'r' + i + '-c' + j);
+                newTR.append(newTD);
+            }
+            newTR.attr('id', 'r' + i)
+            checkerTable.append(newTR);
+        }
+    }
+
+    var drawCheckers = function (size, boardCheckers) {
+        CHECKER_HEIGHT = 400 / size;
+        CHECKER_WIDTH = 400 / size;
+
+        $('.checker').remove();
+
+        var redCheckerSRC = 'graphics/red-piece.png';
+        var redKingCheckerSRC = 'graphics/red-king.png';
+        var blackCheckerSRC = 'graphics/black-piece.png';
+        var blackKingCheckerSRC = 'graphics/black-king.png';
+
+        var checker;
+        var row;
+        var col;
+        var checkerID;
+        var color;
+        var checkerTD;
+        var checkerIMG;
+
+        for (var i = 0, j = boardCheckers.length; i < j; i++) {
+            checker = boardCheckers[i];
+
+            row = 'r' + checker.row;
+            col = 'c' + checker.col;
+
+            checkerID = '#' + row + '-' + col;
+            color = checker.color;
+
+            checkerTD = $(checkerID);
+
+            checkerIMG = $(document.createElement('img'));
+
+            if (color == 'red' && !checker.isKing) {
+                checkerIMG.attr('src', redCheckerSRC)
+                        .addClass('checker-red');
+            } else if (color == 'black' && !checker.isKing) {
+                checkerIMG.attr('src', blackCheckerSRC)
+                        .addClass('checker-black');
+            } else if (color == 'red' && checker.isKing) {
+                checkerIMG.attr('src', redKingCheckerSRC)
+                        .addClass('checker-red');
+            } else {
+                checkerIMG.attr('src', blackKingCheckerSRC)
+                        .addClass('checker-black');
+            }
+            checkerIMG.width(CHECKER_WIDTH);
+            checkerIMG.height(CHECKER_HEIGHT);
+            checkerIMG.addClass('checker');
+            checkerTD.append(checkerIMG);
+        }
+
+        initDraggable();
+    };
+
+    var drawArrow = function (e, arrowctx, SQUARE_LENGTH, checker) {
+
+        var MID_POINT_DISTANCE = SQUARE_LENGTH / 2;
+        var x1 = e.details.fromCol * SQUARE_LENGTH + MID_POINT_DISTANCE;
+        var y1 = e.details.fromRow * SQUARE_LENGTH + MID_POINT_DISTANCE;
+        var x2 = e.details.toCol * SQUARE_LENGTH + MID_POINT_DISTANCE;
+        var y2 = e.details.toRow * SQUARE_LENGTH + MID_POINT_DISTANCE;
+
+        // From stack overflow by user JaredMcAteer
+        // http://stackoverflow.com/a/5810987
+        var ARROW_HEAD_LENGTH = 10;
+        // Line angle
+        var lineAngle = Math.atan((y2 - y1) / (x2 - x1))
+        // Angle for arrow heads
+        var end1 = lineAngle + 45 * Math.PI / 180
+        var end2 = lineAngle - 45 * Math.PI / 180
+        // end points of arrow heads
+        var flip = (x2 < x1) ? -1 : 1;
+        var y3 = y2 - flip * ARROW_HEAD_LENGTH * Math.sin(end1)
+        var x3 = x2 - flip * ARROW_HEAD_LENGTH * Math.cos(end1)
+        var y4 = y2 - flip * ARROW_HEAD_LENGTH * Math.sin(end2)
+        var x4 = x2 - flip * ARROW_HEAD_LENGTH * Math.cos(end2)
+
+
+        var coords = {
+            x1: x1,
+            x2: x2,
+            x3: x3,
+            x4: x4,
+            y1: y1,
+            y2: y2,
+            y3: y3,
+            y4: y4
+        };
+
+        pushBoardState(getBoardState(size), coords, e);
+
+        draw(arrowctx, coords);
+    };
+
+    var draw = function (arrowctx, coordsObject) {
+        var x1 = coordsObject.x1;
+        var x2 = coordsObject.x2;
+        var x3 = coordsObject.x3;
+        var x4 = coordsObject.x4;
+        var y1 = coordsObject.y1;
+        var y2 = coordsObject.y2;
+        var y3 = coordsObject.y3;
+        var y4 = coordsObject.y4;
+
+        // From stack overflow by user wdm
+        // http://stackoverflow.com/a/5810886
+        arrowctx.clearRect(0, 0, 400, 400);
+        arrowctx.lineWidth = 3;
+        arrowctx.strokeStyle = '#ffff00';
+        arrowctx.beginPath();
+        arrowctx.moveTo(x1, y1);
+        arrowctx.lineTo(x2, y2);
+        arrowctx.lineTo(x3, y3);
+        arrowctx.moveTo(x2, y2);
+        arrowctx.lineTo(x4, y4);
+        arrowctx.stroke();
+    };
+
+    var initDraggable = function () {
+        $('.checker').draggable()
+                .draggable('option', 'revert', 'invalid')
+                .draggable('option', 'revertDuration', 0);
+    }
+
+    var initDroppable = function () {
+        $('.checkerTableDatum').droppable()
+                .on('drop', function (event, ui) {
+                    var targetID = $(this).attr('id');
+                    var toRow = targetID.split('-')[0][1];
+                    var toCol = targetID.split('-')[1][1];
+
+                    var checkerParent = ui.draggable.parent();
+                    var cRow = checkerParent.attr('id').split('-')[0][1];
+                    var cCol = checkerParent.attr('id').split('-')[1][1]
+
+                    var checker = board.getCheckerAt(cRow, cCol);
+                    var playerDirection = checker.getColor() == 'black' ?
+                            BLACK_DIRECTION : RED_DIRECTION;
+
+                    console.log('player direction: ' + playerDirection);
+                    console.log('turn direction: ' + turnDirection);
+                    var moveMade = rules.makeMove(checker, turnDirection,
+                            playerDirection,
+                            toRow, toCol) !== null;
+
+                    if (!moveMade) {
+                        drawCheckers(size, board.getAllCheckers())
+                        console.log('moveMade was null');
+                    }
+                });
+    };
+
+    var initBoard = function (size, board, turnDisplay, arrowctx) {
+        board.prepareNewGame();
+        drawBoard(size);
+        drawCheckers(size, board.getAllCheckers());
+        var whoseTurnCapitalize = whoseTurn == 'black' ? 'Black' : 'Red';
+        turnDisplay.text(whoseTurnCapitalize + ' Turn')
+                .removeClass()
+                .addClass(whoseTurn);
+        arrowctx.clearRect(0, 0, 400, 400);
+
+        initDraggable();
+        initDroppable();
+    };
+
+    var getBoardState = function (size) {
+        var checkers = board.getAllCheckers()
+        var square = new Array(size);
+        for (var i = 0; i < size; i++) {
+            square[i] = new Array(size);
+        }
+
+        var checker;
+        for (var i = 0, j = checkers.length; i < j; i++) {
+            checker = checkers[i];
+
+            square[checker.row][checker.col] = new Checker(checker.color,
+                    checker.isKing)
+            square[checker.row][checker.col] =
+                    square[checker.row][checker.col].setRow(checker.row).setCol(checker.col);
+
+        }
+
+        return square;
+    };
+
+    var copyBoardState = function (size, square) {
+
+        var copiedSquare = new Array(size);
+        for (var i = 0; i < size; i++) {
+            copiedSquare[i] = new Array(size);
+        }
+
+        var checker;
+
+        for (var r = 0; r < size; r++) {
+            for (var c = 0; c < size; c++) {
+                if (square[r][c]) {
+                    checker = square[r][c];
+                    copiedSquare[r][c] = new Checker(checker.color,
+                            checker.isKing);
+                    copiedSquare[r][c] =
+                            copiedSquare[r][c].setRow(checker.row).setCol(checker.col);
+                }
+            }
+        }
+        return copiedSquare;
+    };
+    var pushBoardState = function (square, arrowCoords) {
+        states.push({square: square,
+            arrowCoords: arrowCoords
+        });
+
+        currentStateIndex += 1;
+    };
+
+    var undoMove = function (arrowctx) {
+        if (currentStateIndex) {
+            currentStateIndex -= 1;
+
+            var newCurrentState = states[currentStateIndex];
+
+            board.setSquare(copyBoardState(size, newCurrentState.square));
+            toggleTurn(turnDisplay);
+            arrowctx.clearRect(0, 0, 400, 400);
+            if (states[currentStateIndex].arrowCoords) {
+                draw(arrowctx, newCurrentState.arrowCoords)
+            }
+            drawCheckers(size, board.getAllCheckers());
+            checkUndo();
+            checkRedo();
+        }
+    };
+
+    var redoMove = function (arrowctx) {
+        if (!(currentStateIndex === states.length - 1)) {
+            currentStateIndex += 1;
+
+            var newCurrentState = states[currentStateIndex];
+
+            board.setSquare(copyBoardState(size, newCurrentState.square));
+            toggleTurn(turnDisplay);
+            arrowctx.clearRect(0, 0, 400, 400);
+            if (states[currentStateIndex].arrowCoords) {
+                draw(arrowctx, newCurrentState.arrowCoords)
+            }
+            drawCheckers(size, board.getAllCheckers());
+            checkUndo();
+            checkRedo();
+        }
+    };
+
+    var checkUndo = function () {
+        var undoButton = $('#btnUndoMove');
+        if (!currentStateIndex) {
+            undoButton.prop('disabled', true);
+        } else {
+            undoButton.prop('disabled', false);
+        }
+    };
+
+    var checkRedo = function () {
+        var redoButton = $('#btnRedoMove');
+        if (currentStateIndex === states.length - 1) {
+            redoButton.prop('disabled', true);
+        } else {
+            redoButton.prop('disabled', false);
+        }
+    };
+    // init the board
+    var size;
+    var turnDisplay = $('#turn');
+    var arrowCanvas = document.getElementById('arrows');
+    arrowctx = arrowCanvas.getContext('2d');
+
+    BLACK_DIRECTION = -1;
+    RED_DIRECTION = 1;
+    // BLACK = -1, RED = 1
+    turnDirection = BLACK_DIRECTION;
+
+    if ($.getUrlVar('size') && $.getUrlVar('size') >= 6) {
+        size = $.getUrlVar('size');
+        board = new Board(size);
+
+    } else {
+        size = DEFAULT_BOARD_SIZE;
+        board = new Board(size);
+    }
+
+    var SQUARE_LENGTH = 400 / size;
+    // prepare the model with the checkers
+    rules = new Rules(board);
+    initBoard(size, board, turnDisplay, arrowctx);
+
+    // Your code here
+
+    states = [
+        {
+            square: getBoardState(size),
+            arrowCoords: null
+        }
+    ];
+    currentStateIndex = 0;
+    checkRedo();
+    checkUndo();
+
+
+    board.addEventListener('add', function (e) {
+        // Your code here
+        drawCheckers(size, board.getAllCheckers());
+    }, true);
+
+    board.addEventListener('move', function (e) {
+        // Your code here
+        states = states.splice(0, currentStateIndex + 1);
+
+
+        drawCheckers(size, board.getAllCheckers());
+        drawArrow(e, arrowctx, SQUARE_LENGTH);
+        toggleTurn(turnDisplay);
+
+        checkUndo();
+        checkRedo();
+    }, true);
+
+    board.addEventListener('remove', function (e) {
+        // Your code here
+        drawCheckers(size, board.getAllCheckers());
+    }, true);
+
+    board.addEventListener('promote', function (e) {
+        // Your code here
+        drawCheckers(size, board.getAllCheckers());
+    }, true);
+
+
+    $("#btnNewGame").click(function (evt) {
+        if (whoseTurn == 'red') {
+            toggleTurn(turnDisplay);
+        }
+        board.prepareNewGame();
+        drawCheckers(size, board.getAllCheckers());
+        arrowctx.clearRect(0, 0, 400, 400);
+
+        states = [
+            {
+                square: getBoardState(size),
+                arrowCoords: null
+            }
+        ];
+        currentStateIndex = 0;
+
+        checkUndo();
+        checkRedo();
+    });
+
+    $("#btnAutoMove").click(function (evt) {
+        var playerColor = whoseTurn;
+        var playerDirection = directionOf(playerColor);
+        rules.makeRandomMove(playerColor, playerDirection);
+    });
+
+    $('#btnUndoMove').click(function (evt) {
+        undoMove(arrowctx);
+    });
+
+    $('#btnRedoMove').click(function (ect) {
+        redoMove(arrowctx);
+    });
+
+
+});
+</script>
+
+
+</head>
+
+<body>
+
+<table id="mainTable">
+    <tr>
+        <td id="navigation">
+            <table>
+                <tr>
+                    <td>
+                        <!-- Your code here -->
+                        <div id='turn'>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <input id="btnNewGame" type="button" name="new"
+                               value="New Game"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <input id="btnAutoMove" type="button" name="new"
+                               value="Auto Move"/>
+                    </td>
+
+                </tr>
+                <tr>
+                    <td>
+                        <input id="btnUndoMove" type="button" name="new"
+                               value="Undo Move"/>
+                    </td>
+
+                </tr>
+                <tr>
+                    <td>
+                        <input id="btnRedoMove" type="button" name="new"
+                               value="Redo Move"/>
+                    </td>
+
+                </tr>
+
+            </table>
+        </td>
+
+        <td id="content">
+
+            <!-- Your code here -->
+            <table id="checker-board" height=400px width=400px max-width=400px
+                   max-height=400px>
+
+            </table>
+            <canvas id="arrows" height=400px width=400px></canvas>
+        </td>
+    </tr>
+
+</table>
+
+</body>
+
+</html>
